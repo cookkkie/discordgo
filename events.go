@@ -42,6 +42,7 @@ type Ready struct {
 	ReadState       []*ReadState `json:"read_state"`
 	PrivateChannels []*Channel   `json:"private_channels"`
 	Guilds          []*Guild     `json:"guilds"`
+	Trace           []string     `json:"_trace"`
 
 	// Undocumented fields
 	Settings          *Settings            `json:"user_settings"`
