@@ -729,6 +729,23 @@ func (s *Session) identify() error {
 
 	op := identifyOp{2, data}
 
+	if s.Redis != nil {
+		var sinfo string
+		for {
+			sinfo = fmt.Sprintf("%d-%d", s.ShardID, s.ShardCount)
+			val, err := s.Redis.SetNX("discordgo.identify_lock", sinfo, 7*time.Second).Result()
+			if err != nil {
+				return err
+			}
+
+			if val == true {
+				break
+			} else {
+				time.Sleep(1 * time.Second)
+			}
+		}
+	}
+
 	s.wsMutex.Lock()
 	err := s.wsConn.WriteJSON(op)
 	s.wsMutex.Unlock()

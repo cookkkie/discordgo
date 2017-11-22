@@ -17,6 +17,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/go-redis/redis"
 	"github.com/gorilla/websocket"
 )
 
@@ -29,6 +30,9 @@ type Session struct {
 	// Authentication token for this session
 	Token string
 	MFA   bool
+
+	// Redis client
+	Redis *redis.Client
 
 	// Debug for printing JSON request/responses
 	Debug    bool // Deprecated, will be removed.
