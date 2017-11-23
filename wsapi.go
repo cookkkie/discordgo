@@ -74,6 +74,23 @@ func (s *Session) Open() error {
 		s.gateway = s.gateway + "?v=" + APIVersion + "&encoding=json"
 	}
 
+	if s.sessionID == "" && s.Redis != nil {
+		var sinfo string
+		for {
+			sinfo = fmt.Sprintf("%d-%d", s.ShardID, s.ShardCount)
+			val, err := s.Redis.SetNX("discordgo.shard_lock", sinfo, 7*time.Second).Result()
+			if err != nil {
+				return err
+			}
+
+			if val == true {
+				break
+			} else {
+				time.Sleep(1 * time.Second)
+			}
+		}
+	}
+
 	// Connect to the Gateway
 	s.log(LogInformational, "connecting to gateway %s", s.gateway)
 	header := http.Header{}
@@ -421,9 +438,14 @@ func (s *Session) RequestGuildMembers(guildID, query string, limit int) (err err
 
 // onClose is the "websocket close handler"
 func (s *Session) onClose(code int, text string) error {
-	s.log(LogWarning, "Received %d close code from websocket: %s, reconnecting...", code, text)
-	s.Close()
-	s.reconnect()
+	s.Lock()
+	defer s.Unlock()
+
+	if s.wsConn != nil {
+		s.log(LogWarning, "Received %d close code from websocket: %s, reconnecting...", code, text)
+		s.Close()
+		s.reconnect()
+	}
 	return nil
 }
 
@@ -498,13 +520,10 @@ func (s *Session) onEvent(messageType int, message []byte) (*Event, error) {
 	// Must respond with a Identify packet.
 	if e.Operation == 9 {
 
-		s.log(LogInformational, "sending identify packet to gateway in response to Op9")
+		s.log(LogInformational, "closing connecting in response to Op9")
 
-		err = s.identify()
-		if err != nil {
-			s.log(LogWarning, "error sending gateway identify packet, %s, %s", s.gateway, err)
-			return e, err
-		}
+		s.Close()
+		s.reconnect()
 
 		return e, nil
 	}
@@ -739,23 +758,6 @@ func (s *Session) identify() error {
 
 	op := identifyOp{2, data}
 
-	if s.Redis != nil {
-		var sinfo string
-		for {
-			sinfo = fmt.Sprintf("%d-%d", s.ShardID, s.ShardCount)
-			val, err := s.Redis.SetNX("discordgo.identify_lock", sinfo, 7*time.Second).Result()
-			if err != nil {
-				return err
-			}
-
-			if val == true {
-				break
-			} else {
-				time.Sleep(1 * time.Second)
-			}
-		}
-	}
-
 	s.wsMutex.Lock()
 	err := s.wsConn.WriteJSON(op)
 	s.wsMutex.Unlock()
@@ -850,9 +852,6 @@ func (s *Session) Close() (err error) {
 		if err != nil {
 			s.log(LogInformational, "error closing websocket, %s", err)
 		}
-
-		// TODO: Wait for Discord to actually close the connection.
-		time.Sleep(1 * time.Second)
 
 		s.log(LogInformational, "closing gateway websocket")
 		err = s.wsConn.Close()
