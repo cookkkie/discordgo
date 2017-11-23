@@ -86,6 +86,8 @@ func (s *Session) Open() error {
 		return err
 	}
 
+	s.wsConn.SetCloseHandler(s.onClose)
+
 	defer func() {
 		// because of this, all code below must set err to the error
 		// when exiting with an error :)  Maybe someone has a better
@@ -415,6 +417,14 @@ func (s *Session) RequestGuildMembers(guildID, query string, limit int) (err err
 	s.wsMutex.Unlock()
 
 	return
+}
+
+// onClose is the "websocket close handler"
+func (s *Session) onClose(code int, text string) error {
+	s.log(LogWarning, "Received %d close code from websocket: %s, reconnecting...", code, text)
+	s.Close()
+	s.reconnect()
+	return nil
 }
 
 // onEvent is the "event handler" for all messages received on the
