@@ -58,7 +58,7 @@ func New(args ...interface{}) (s *Session, err error) {
 		ShardCount:             1,
 		MaxRestRetries:         3,
 		Client:                 &http.Client{Timeout: (20 * time.Second)},
-		sequence:               new(int64),
+		Sequence:               new(int64),
 		LastHeartbeatAck:       time.Now().UTC(),
 	}
 

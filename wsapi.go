@@ -74,7 +74,7 @@ func (s *Session) Open() error {
 		s.gateway = s.gateway + "?v=" + APIVersion + "&encoding=json"
 	}
 
-	if s.sessionID == "" && s.Redis != nil {
+	if s.SessionID == "" && s.Redis != nil {
 		var sinfo string
 		for {
 			sinfo = fmt.Sprintf("%d-%d", s.ShardID, s.ShardCount)
@@ -139,8 +139,8 @@ func (s *Session) Open() error {
 
 	// Now we send either an Op 2 Identity if this is a brand new
 	// connection or Op 6 Resume if we are resuming an existing connection.
-	sequence := atomic.LoadInt64(s.sequence)
-	if s.sessionID == "" && sequence == 0 {
+	sequence := atomic.LoadInt64(s.Sequence)
+	if s.SessionID == "" && sequence == 0 {
 
 		// Send Op 2 Identity Packet
 		err = s.identify()
@@ -155,7 +155,7 @@ func (s *Session) Open() error {
 		p := resumePacket{}
 		p.Op = 6
 		p.Data.Token = s.Token
-		p.Data.SessionID = s.sessionID
+		p.Data.SessionID = s.SessionID
 		p.Data.Sequence = sequence
 
 		s.log(LogInformational, "sending resume packet to gateway")
@@ -301,7 +301,7 @@ func (s *Session) heartbeat(wsConn *websocket.Conn, listening <-chan interface{}
 		s.RLock()
 		last := s.LastHeartbeatAck
 		s.RUnlock()
-		sequence := atomic.LoadInt64(s.sequence)
+		sequence := atomic.LoadInt64(s.Sequence)
 		s.log(LogInformational, "sending gateway websocket heartbeat seq %d", sequence)
 		s.wsMutex.Lock()
 		err = wsConn.WriteJSON(heartbeatOp{1, sequence})
@@ -497,7 +497,7 @@ func (s *Session) onEvent(messageType int, message []byte) (*Event, error) {
 	if e.Operation == 1 {
 		s.log(LogInformational, "sending heartbeat in response to Op1")
 		s.wsMutex.Lock()
-		err = s.wsConn.WriteJSON(heartbeatOp{1, atomic.LoadInt64(s.sequence)})
+		err = s.wsConn.WriteJSON(heartbeatOp{1, atomic.LoadInt64(s.Sequence)})
 		s.wsMutex.Unlock()
 		if err != nil {
 			s.log(LogError, "error sending heartbeat in response to Op1")
@@ -550,7 +550,7 @@ func (s *Session) onEvent(messageType int, message []byte) (*Event, error) {
 	}
 
 	// Store the message sequence
-	atomic.StoreInt64(s.sequence, e.Sequence)
+	atomic.StoreInt64(s.Sequence, e.Sequence)
 
 	// Map event to registered event handlers and pass it along to any registered handlers.
 	if eh, ok := registeredInterfaceProviders[e.Type]; ok {

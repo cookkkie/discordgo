@@ -103,13 +103,13 @@ type Session struct {
 	listening chan interface{}
 
 	// sequence tracks the current gateway api websocket sequence number
-	sequence *int64
+	Sequence *int64
 
 	// stores sessions current Discord Gateway
 	gateway string
 
 	// stores session ID of current Gateway connection
-	sessionID string
+	SessionID string
 
 	// used to make sure gateway websocket writes do not happen concurrently
 	wsMutex sync.Mutex
