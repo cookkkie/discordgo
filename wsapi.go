@@ -644,6 +644,23 @@ func (s *Session) ChannelVoiceJoin(gID, cID string, mute, deaf bool) (voice *Voi
 	return
 }
 
+func (s *Session) SendVoiceStateUpdate(gID, cID string, mute, deaf bool) (err error) {
+	// Send the request to Discord that we want to join the voice channel
+	var data voiceChannelJoinOp
+	if cID == "" {
+		data = voiceChannelJoinOp{4, voiceChannelJoinData{&gID, nil, mute, deaf}}
+	} else {
+		data = voiceChannelJoinOp{4, voiceChannelJoinData{&gID, &cID, mute, deaf}}
+	}
+	s.wsMutex.Lock()
+	err = s.wsConn.WriteJSON(data)
+	s.wsMutex.Unlock()
+	if err != nil {
+		return err
+	}
+	return nil
+}
+
 // onVoiceStateUpdate handles Voice State Update events on the data websocket.
 func (s *Session) onVoiceStateUpdate(st *VoiceStateUpdate) {
 
